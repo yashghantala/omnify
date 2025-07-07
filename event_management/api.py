@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -33,7 +35,9 @@ class EventViewSet(GenericViewSet):
         return Response(status=HTTP_201_CREATED)
 
     def list(self, request, **kwargs):
-        events = Event.objects.filter(created_by=request.user)
+        events = Event.objects.filter(
+            created_by=request.user, start_time__gt=timezone.now()
+        )
         events = EventSerializer(events, many=True).data
 
         return Response(data=events)

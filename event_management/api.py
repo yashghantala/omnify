@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.utils import IntegrityError
 from django.utils import timezone
 from rest_framework.decorators import action
@@ -52,23 +53,33 @@ class EventViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
         attendee_data = serializer.validated_data
 
-        try:
-            event = Event.objects.get(pk=pk, created_by=request.user)
-        except Event.DoesNotExist:
-            return Response(status=HTTP_404_NOT_FOUND)
+        # Prevent over booking than capacity
+        with transaction.atomic():
+            try:
+                # Lock until transaction is complete
+                event = Event.objects.select_for_update().get(
+                    pk=pk, created_by=request.user
+                )
+            except Event.DoesNotExist:
+                return Response(status=HTTP_404_NOT_FOUND)
 
-        attendee = Attendee()
-        attendee.name = attendee_data.get("name")
-        attendee.email = attendee_data.get("email")
-        attendee.event = event
+            if event.max_capacity == event.attendees.count():
+                return Response(
+                    data={"error": "No more seats are available."},
+                    status=HTTP_400_BAD_REQUEST,
+                )
 
-        # Handle duplicate
-        try:
-            attendee.save()
-        except IntegrityError:
-            return Response(
-                data={"error": "Duplicate attendee"}, status=HTTP_400_BAD_REQUEST
-            )
+            # Handle duplicate
+            try:
+                attendee = Attendee()
+                attendee.name = attendee_data.get("name")
+                attendee.email = attendee_data.get("email")
+                attendee.event = event
+                attendee.save()
+            except IntegrityError:
+                return Response(
+                    data={"error": "Duplicate attendee."}, status=HTTP_400_BAD_REQUEST
+                )
 
         return Response(status=HTTP_201_CREATED)
 

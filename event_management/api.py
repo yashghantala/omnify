@@ -1,9 +1,13 @@
+from django.db.utils import IntegrityError
 from django.utils import timezone
-
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND
+from rest_framework.status import (
+    HTTP_201_CREATED,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+)
 from rest_framework.viewsets import GenericViewSet
 
 from event_management.models import Attendee, Event
@@ -57,7 +61,14 @@ class EventViewSet(GenericViewSet):
         attendee.name = attendee_data.get("name")
         attendee.email = attendee_data.get("email")
         attendee.event = event
-        attendee.save()
+
+        # Handle duplicate
+        try:
+            attendee.save()
+        except IntegrityError:
+            return Response(
+                data={"error": "Duplicate attendee"}, status=HTTP_400_BAD_REQUEST
+            )
 
         return Response(status=HTTP_201_CREATED)
 

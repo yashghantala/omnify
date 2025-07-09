@@ -21,6 +21,12 @@ Install dependencies by running command below in project root directory
 pip install -r ./requirement.txt
 ```
 
+Setup database tables
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
 Run server
 ```bash
 python manage.py runserver

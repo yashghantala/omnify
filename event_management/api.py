@@ -60,6 +60,14 @@ class EventViewSet(GenericViewSet):
                 event = Event.objects.select_for_update().get(
                     pk=pk, created_by=request.user
                 )
+
+                # Prevent registration on events
+                # which are already started or ended
+                if event.start_time < timezone.now():
+                    return Response(
+                        data={"error": "Event registration time is over."},
+                        status=HTTP_400_BAD_REQUEST,
+                    )
             except Event.DoesNotExist:
                 return Response(status=HTTP_404_NOT_FOUND)
 
